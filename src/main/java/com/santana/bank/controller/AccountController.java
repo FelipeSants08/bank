@@ -1,5 +1,6 @@
 package com.santana.bank.controller;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -39,26 +41,34 @@ public class AccountController {
     @PostMapping("/account")
     public ResponseEntity<Account> create(@RequestBody Account account) {
         log.info("Cadastrando conta " + account.getName());
+        account.setActive(true);
+        ValidationAccount(account);
         repository.add(account);
         return ResponseEntity.status(HttpStatus.CREATED).body(account);
     }
 
     //Busca conta por ID
-    @GetMapping("/account/id/{id}")
+    @GetMapping("/account/{id}/id")
     public ResponseEntity<Account> get(@PathVariable Long id) {
         log.info("Buscando conta por ID");
         return ResponseEntity.ok(getAccountId(id));
     }
     
-    @GetMapping("/account/cpf/{cpf}")
+    @GetMapping("/account/{cpf}/cpf")
     public ResponseEntity<Account> get(@PathVariable String cpf) {
         log.info("Buscando conta por CPF");
         return ResponseEntity.ok(getAccountCpf(cpf));
     }
 
+    @PutMapping("/account/{id}/close")
+    public ResponseEntity<Account> close(@PathVariable Long id) {
+        log.info("Encerrando conta");
+        Account account = getAccountId(id);
+        account.setActive(false);
+        return ResponseEntity.ok(account);
+    }
 
-
-
+    
     private Account getAccountCpf(String cpf) {
         return repository.stream()
         .filter(c -> c.getCpf().equals(cpf))
@@ -79,5 +89,26 @@ public class AccountController {
             () -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Conta não encontrada"));
+    }
+
+    private void ValidationAccount(Account account) {
+        if (account.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome não pode ser nulo");
+        }
+        if (account.getCpf() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CPF não pode ser nulo");
+        }
+        if (account.getCpf().length() != 11) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CPF inválido");
+        }
+        if (account.getDateCreation().isAfter(LocalDate.now()) || account.getDateCreation() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Data não pode ser no futuro ou nula");
+        }
+        if (account.getBalance() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo não pode ser negativo");
+        }
+        if (account.getType() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo inválido(Corrente, poupanca ou salario)");
+        }
     }
 }
