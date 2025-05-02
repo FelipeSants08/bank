@@ -111,7 +111,7 @@ public class AccountController {
 
     @PutMapping("/account/pix")
     public ResponseEntity<Account> transactionPix(@RequestBody PixDTO pix) {
-        log.info("Realizando pix");
+        log.info("Pix de " + pix.getIdOrigin() + " para " + pix.getIdDestination());
         Account origin = getAccountId(pix.getIdOrigin());
         Account destination = getAccountId(pix.getIdDestination());
         if (!origin.getActive() || !destination.getActive()) {
