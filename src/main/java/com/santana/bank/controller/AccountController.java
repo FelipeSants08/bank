@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.santana.bank.dto.PixDTO;
+import com.santana.bank.dto.TransactionDTO;
 import com.santana.bank.model.Account;
 
 
@@ -68,7 +70,69 @@ public class AccountController {
         return ResponseEntity.ok(account);
     }
 
+
+    @PutMapping("/account/{id}/deposit")
+    public ResponseEntity<Account> deposit(@PathVariable Long id, @RequestBody TransactionDTO transaction) {
+        log.info("Fazendo deposito na conta: " + id);
+        Account account = getAccountId(id);
+
+        if (!account.getActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta está inativa");
+        }
     
+        if (transaction.getValue() == null || transaction.getValue() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor de depósito inválido");
+        }
+    
+        account.setBalance(account.getBalance() + transaction.getValue());
+        return ResponseEntity.ok(account);
+    }
+
+
+    @PutMapping("/account/{id}/withdraw")
+    public ResponseEntity<Account> withdraw(@PathVariable Long id, @RequestBody TransactionDTO transaction) {
+        log.info("Realizando sague na conta" + id);
+        Account account = getAccountId(id);
+
+        if (!account.getActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta está inativa");
+        }
+        if (transaction.getValue() == null || transaction.getValue() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor não pode ser negativo");
+        }
+        if (transaction.getValue() > account.getBalance()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo insuficiente");
+        }
+
+        account.setBalance(account.getBalance() - transaction.getValue());
+        return ResponseEntity.ok(account);
+    }
+
+
+    @PutMapping("/account/pix")
+    public ResponseEntity<Account> transactionPix(@RequestBody PixDTO pix) {
+        log.info("Realizando pix");
+        Account origin = getAccountId(pix.getIdOrigin());
+        Account destination = getAccountId(pix.getIdDestination());
+        if (!origin.getActive() || !destination.getActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma das contas está inativa");
+        }
+    
+        if (pix.getValue() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor inválido para pix");
+        }
+    
+        if (origin.getBalance() < pix.getValue()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo insuficiente");
+        }
+        origin.setBalance(origin.getBalance() - pix.getValue());
+        destination.setBalance(destination.getBalance() + pix.getValue());
+        return ResponseEntity.ok(origin);
+    }
+
+
+
+
     private Account getAccountCpf(String cpf) {
         return repository.stream()
         .filter(c -> c.getCpf().equals(cpf))
@@ -78,8 +142,6 @@ public class AccountController {
                 HttpStatus.NOT_FOUND,
                 "Conta não encontrada"));
     }
-
-
 
     private Account getAccountId(Long id) {
         return repository.stream()
